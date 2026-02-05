@@ -1,0 +1,75 @@
+{
+    "name": "agent-eyes",
+    "version": "1.0.1",
+    "description": "MCP server that bridges browser console errors to AI coding agents",
+    "author": "AgentEyes Contributors",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/oseifelix/agent-eyes.git"
+    },
+    "homepage": "https://github.com/oseifelix/agent-eyes#readme",
+    "bugs": {
+        "url": "https://github.com/oseifelix/agent-eyes/issues"
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "bin": {
+        "agent-eyes": "./dist/index.js"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        },
+        "./react": {
+            "types": "./dist/react/index.d.ts",
+            "default": "./dist/react/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "tsc --watch",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "mcp",
+        "model-context-protocol",
+        "browser",
+        "console",
+        "errors",
+        "debugging",
+        "ai",
+        "ai-agent",
+        "developer-tools",
+        "nextjs",
+        "react"
+    ],
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
+        "ws": "^8.18.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/react": "^18.0.0",
+        "@types/ws": "^8.5.0",
+        "typescript": "^5.0.0"
+    },
+    "peerDependencies": {
+        "react": ">=17.0.0"
+    },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        }
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

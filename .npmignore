@@ -1,0 +1,20 @@
+# Source files (we publish compiled dist/)
+src/
+
+# Development files
+node_modules/
+*.log
+.git/
+.gitignore
+
+# Build artifacts
+tsconfig.json
+
+# IDE files
+.vscode/
+.idea/
+
+# Test files
+*.test.ts
+*.spec.ts
+__tests__/
