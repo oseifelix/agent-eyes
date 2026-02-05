@@ -59,7 +59,7 @@ function formatErrorsForDisplay(): string {
 
 const WS_PORT = 3001;
 
-function startWebSocketServer(): WebSocketServer {
+function startWebSocketServer(): void {
     const wss = new WebSocketServer({ port: WS_PORT });
 
     wss.on("connection", (ws: WebSocket) => {
@@ -75,7 +75,22 @@ function startWebSocketServer(): WebSocketServer {
         });
     });
 
-    return wss;
+    wss.on("error", (err: NodeJS.ErrnoException) => {
+        if (err.code === "EADDRINUSE") {
+            // Port already in use - another instance is likely running
+            // This is fine, we can still serve MCP requests
+            // The browser will connect to the existing WebSocket server
+            console.error(`[agent-eyes] Port ${WS_PORT} is already in use.`);
+            console.error(`[agent-eyes] Another AgentEyes instance may be running.`);
+            console.error(`[agent-eyes] MCP server will still work, but browser errors won't be captured by this instance.`);
+        } else {
+            console.error(`[agent-eyes] WebSocket server error:`, err.message);
+        }
+    });
+
+    wss.on("listening", () => {
+        // Server started successfully - silent in normal operation
+    });
 }
 
 // ============================================================================
@@ -84,7 +99,7 @@ function startWebSocketServer(): WebSocketServer {
 
 async function startMcpServer(): Promise<void> {
     const server = new Server(
-        { name: "agent-eyes", version: "1.0.0" },
+        { name: "agent-eyes", version: "1.0.2" },
         { capabilities: { tools: {} } }
     );
 
