@@ -254,7 +254,7 @@ function startWebSocketServer(): void {
 
 async function startMcpServer(): Promise<void> {
     const server = new Server(
-        { name: "agent-eyes", version: "1.0.5" },
+        { name: "agent-eyes", version: "1.0.6" },
         { capabilities: { tools: {} } }
     );
 

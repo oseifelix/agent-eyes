@@ -13,7 +13,7 @@ interface ErrorPayload {
     url: string;
 }
 
-interface AgentEyesProviderProps {
+export interface AgentEyesProviderProps {
     children?: ReactNode;
 }
 

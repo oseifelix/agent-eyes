@@ -1,1 +1,1 @@
-export { AgentEyesProvider } from "./AgentEyesProvider";
+export { AgentEyesProvider, type AgentEyesProviderProps } from "./AgentEyesProvider";
