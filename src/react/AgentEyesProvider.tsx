@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 const WS_URL = "ws://localhost:3001";
 const RECONNECT_DELAY = 3000;
@@ -11,6 +11,10 @@ interface ErrorPayload {
     stack?: string;
     timestamp: number;
     url: string;
+}
+
+interface AgentEyesProviderProps {
+    children?: ReactNode;
 }
 
 /**
@@ -26,15 +30,16 @@ interface ErrorPayload {
  *   return (
  *     <html>
  *       <body>
- *         <AgentEyesProvider />
- *         {children}
+ *         <AgentEyesProvider>
+ *           {children}
+ *         </AgentEyesProvider>
  *       </body>
  *     </html>
  *   );
  * }
  * ```
  */
-export function AgentEyesProvider(): null {
+export function AgentEyesProvider({ children }: AgentEyesProviderProps): ReactNode {
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -130,7 +135,9 @@ export function AgentEyesProvider(): null {
         };
     }, []);
 
-    return null;
+    // Return children (or null if none provided) - works both as wrapper and self-closing
+    return children ?? null;
 }
 
 export default AgentEyesProvider;
+
