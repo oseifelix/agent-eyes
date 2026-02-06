@@ -1,6 +1,6 @@
 {
     "name": "agent-eyes",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "MCP server that bridges browser console errors to AI coding agents",
     "author": "AgentEyes Contributors",
     "license": "MIT",

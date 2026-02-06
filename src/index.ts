@@ -79,17 +79,18 @@ function isPortInUse(port: number): Promise<boolean> {
     });
 }
 
-function killProcessOnPort(port: number): Promise<boolean> {
+function killNodeProcessOnPort(port: number): Promise<{ killed: boolean; reason: string }> {
     return new Promise((resolve) => {
         const isWindows = process.platform === "win32";
-        
+
         if (isWindows) {
-            // Windows: find PID using netstat and kill it
+            // Windows: find PID using netstat, verify it's node, then kill
             exec(`netstat -ano | findstr :${port} | findstr LISTENING`, (err, stdout) => {
                 if (err || !stdout.trim()) {
-                    resolve(false);
+                    resolve({ killed: false, reason: "no_process" });
                     return;
                 }
+
                 // Parse PID from netstat output (last column)
                 const lines = stdout.trim().split("\n");
                 const pids = new Set<string>();
@@ -100,41 +101,94 @@ function killProcessOnPort(port: number): Promise<boolean> {
                         pids.add(pid);
                     }
                 }
-                
+
                 if (pids.size === 0) {
-                    resolve(false);
+                    resolve({ killed: false, reason: "no_process" });
                     return;
                 }
 
-                // Kill each PID
+                // Check if each PID is a node process before killing
                 let killed = false;
                 let remaining = pids.size;
+                let nonNodeFound = false;
+
                 for (const pid of pids) {
-                    exec(`taskkill /PID ${pid} /F`, (killErr) => {
-                        if (!killErr) killed = true;
-                        remaining--;
-                        if (remaining === 0) {
-                            resolve(killed);
+                    // Use tasklist to get process name
+                    exec(`tasklist /FI "PID eq ${pid}" /FO CSV /NH`, (taskErr, taskOut) => {
+                        const isNode = taskOut && taskOut.toLowerCase().includes("node");
+
+                        if (isNode) {
+                            // It's a node process - safe to kill
+                            exec(`taskkill /PID ${pid} /F`, (killErr) => {
+                                if (!killErr) killed = true;
+                                remaining--;
+                                if (remaining === 0) {
+                                    resolve({
+                                        killed,
+                                        reason: killed ? "success" : (nonNodeFound ? "not_node" : "kill_failed")
+                                    });
+                                }
+                            });
+                        } else {
+                            // Not a node process - don't kill
+                            nonNodeFound = true;
+                            remaining--;
+                            if (remaining === 0) {
+                                resolve({
+                                    killed,
+                                    reason: killed ? "success" : "not_node"
+                                });
+                            }
                         }
                     });
                 }
             });
         } else {
-            // Unix/Mac: use lsof and kill
+            // Unix/Mac: use lsof to find PID, ps to verify it's node
             exec(`lsof -ti:${port}`, (err, stdout) => {
                 if (err || !stdout.trim()) {
-                    resolve(false);
-                    return;
-                }
-                const pids = stdout.trim().split("\n").filter(Boolean);
-                if (pids.length === 0) {
-                    resolve(false);
+                    resolve({ killed: false, reason: "no_process" });
                     return;
                 }
 
-                exec(`kill -9 ${pids.join(" ")}`, (killErr) => {
-                    resolve(!killErr);
-                });
+                const pids = stdout.trim().split("\n").filter(Boolean);
+                if (pids.length === 0) {
+                    resolve({ killed: false, reason: "no_process" });
+                    return;
+                }
+
+                // Check each PID to see if it's node
+                let killed = false;
+                let remaining = pids.length;
+                let nonNodeFound = false;
+
+                for (const pid of pids) {
+                    exec(`ps -p ${pid} -o comm=`, (psErr, psOut) => {
+                        const isNode = psOut && psOut.trim().toLowerCase().includes("node");
+
+                        if (isNode) {
+                            exec(`kill -9 ${pid}`, (killErr) => {
+                                if (!killErr) killed = true;
+                                remaining--;
+                                if (remaining === 0) {
+                                    resolve({
+                                        killed,
+                                        reason: killed ? "success" : (nonNodeFound ? "not_node" : "kill_failed")
+                                    });
+                                }
+                            });
+                        } else {
+                            nonNodeFound = true;
+                            remaining--;
+                            if (remaining === 0) {
+                                resolve({
+                                    killed,
+                                    reason: killed ? "success" : "not_node"
+                                });
+                            }
+                        }
+                    });
+                }
             });
         }
     });
@@ -142,18 +196,20 @@ function killProcessOnPort(port: number): Promise<boolean> {
 
 async function ensurePortAvailable(): Promise<void> {
     const portInUse = await isPortInUse(WS_PORT);
-    
+
     if (portInUse) {
-        console.error(`[agent-eyes] Port ${WS_PORT} is in use. Attempting takeover...`);
-        const killed = await killProcessOnPort(WS_PORT);
-        
-        if (killed) {
-            console.error(`[agent-eyes] Successfully terminated previous instance.`);
+        console.error(`[agent-eyes] Port ${WS_PORT} is in use. Checking process...`);
+        const result = await killNodeProcessOnPort(WS_PORT);
+
+        if (result.killed) {
+            console.error(`[agent-eyes] Successfully terminated previous Node.js instance.`);
             // Wait briefly for port to be released
             await new Promise(resolve => setTimeout(resolve, 500));
+        } else if (result.reason === "not_node") {
+            console.error(`[agent-eyes] Port ${WS_PORT} is used by a non-Node.js process.`);
+            console.error(`[agent-eyes] AgentEyes will not kill it. Please free the port manually.`);
         } else {
-            console.error(`[agent-eyes] Could not terminate process on port ${WS_PORT}.`);
-            console.error(`[agent-eyes] Another service may be using this port.`);
+            console.error(`[agent-eyes] Could not determine process on port ${WS_PORT}.`);
         }
     }
 }
@@ -198,7 +254,7 @@ function startWebSocketServer(): void {
 
 async function startMcpServer(): Promise<void> {
     const server = new Server(
-        { name: "agent-eyes", version: "1.0.3" },
+        { name: "agent-eyes", version: "1.0.4" },
         { capabilities: { tools: {} } }
     );
 
@@ -248,10 +304,10 @@ async function startMcpServer(): Promise<void> {
 async function main(): Promise<void> {
     // Ensure port is available (kill zombie if needed)
     await ensurePortAvailable();
-    
+
     // Start WebSocket server for browser telemetry
     startWebSocketServer();
-    
+
     // Start MCP server for IDE communication
     await startMcpServer();
 }

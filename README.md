@@ -216,9 +216,12 @@ Returns the last 20 browser errors with:
 
 ### "Port 3001 is already in use"
 
-Another process is using port 3001. Either:
-- Stop the other process, OR
-- AgentEyes is already running (this is fine!)
+AgentEyes automatically handles this! On startup, it will:
+- Detect if another **Node.js process** is using port 3001
+- Terminate the old instance (e.g., a zombie AgentEyes process)
+- Start fresh
+
+If the port is used by a **non-Node.js service** (like Python or Java), AgentEyes will not kill it and will log a warning instead. In this case, you'll need to free the port manually.
 
 ### "Cannot find module 'agent-eyes/react'"
 
